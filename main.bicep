@@ -20,8 +20,8 @@ param authenticationType string = 'password'
 @secure()
 param passwordOrKey string
 
-@description('Port number to run the wasmcloud UI.')
-param washUIPort int = 4001
+@description('SSH Key or password for the Virtual Machine. SSH key is recommended.')
+param installRustLanguage bool = true
 
 // variables
 var vmNames = [for i in range(0, numVM): {
@@ -30,6 +30,7 @@ var vmNames = [for i in range(0, numVM): {
 
 // Script content for Kubernetes cluster creation
 var wasmCloudConfig = loadTextContent('scripts/wasmconfig.sh', 'utf-8')
+var installRust = loadTextContent('scripts/installRust.sh', 'utf-8')
 
 // Provision NSG and allow 22
 module nsg 'modules/nsg.bicep' = {
@@ -114,6 +115,18 @@ resource cse 'Microsoft.Compute/virtualMachines/extensions@2022-03-01' = [for (v
     }
   }
 }]
+
+// Perform Rust install init on wcloud1
+module installRustLang 'modules/managedRunCmd.bicep' = if (installRustLanguage) {
+  name: 'installRust'
+  dependsOn: cse
+  params: {
+    configType: 'installRust'
+    location: location
+    vmName: 'wcloud1'
+    scriptContent: installRust
+  }
+}
 
 // Retrieve output
 output vmInfo array = [for (vm, i) in vmNames: {
